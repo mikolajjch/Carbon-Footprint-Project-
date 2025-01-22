@@ -1,7 +1,6 @@
 from app import app
-from flask import jsonify, request
+from flask import jsonify, request, render_template
 
-#testowa baza danych (słowniki)
 users = [
     {"id": 1, "name": "John Pork", "email": "john.pork@example.com"},
     {"id": 2, "name": "Jane Smith", "email": "jane.smith@example.com"}
@@ -10,7 +9,10 @@ users = [
 #############
 @app.route('/')
 def home():
-    return "Witaj w aplikacji do obliczania śladu węglowego!"
+    try:
+        return render_template('index.html')
+    except Exception as e:
+        return f"Error rendering index.html: {e}", 500
 
 @app.route('/users', methods=['GET'])
 def get_users():
@@ -18,7 +20,7 @@ def get_users():
 
 @app.route('/users', methods=['POST'])
 def add_user():
-    data = request.get_json()  
+    data = request.get_json()
     new_user = {
         "id": len(users) + 1,
         "name": data['name'],

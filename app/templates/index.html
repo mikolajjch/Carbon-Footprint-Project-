@@ -11,6 +11,33 @@
     <p>This is a simple app to calculate your carbon footprint.</p>
     
     <script src="{{ url_for('static', filename='script.js') }}"></script>
+    
+    <form id="carbon-form">
+        <label for="category">Choose a category:</label>
+        <select id="category" name="category">
+            <option value="transport">Transport</option>
+            <option value="food">Food</option>
+            <option value="energy">Energy</option>
+        </select>
+    
+        <label for="activity">Choose an activity:</label>
+        <select id="activity" name="activity">
+            <option value="car">Car</option>
+            <option value="bus">Bus</option>
+            <option value="bike">Bike</option>
+            <option value="vegetarian">Vegetarian Diet</option>
+            <option value="coal">Coal Energy</option>
+        </select>
+    
+        <label for="value">Enter a value ( ):</label>
+        <input type="number" id="value" name="value" required>
+    
+        <button type="submit">Calculate</button>
+    </form>
+    
+    <div id="result">
+        <h2>Result: <span id="emission-result">0</span> kg CO₂</h2>
+    </div>
+    
 </body>
 </html>
-

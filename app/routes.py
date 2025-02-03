@@ -1,9 +1,39 @@
 from flask import Flask, jsonify, request, render_template
 from datetime import datetime, timedelta
-import jwt  
+import jwt
+from functools import wraps
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your_secret_key'  
+app.config['SECRET_KEY'] = 'your_secret_key'
+
+########################## definijca tokenów i admin ####### NA POCZATKU
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = request.headers.get('Authorization')
+        if not token:
+            return jsonify({"error": "Token is missing"}), 401
+
+        try:
+            decoded_token = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+            request.user = decoded_token
+        except jwt.ExpiredSignatureError:
+            return jsonify({"error": "Token has expired"}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({"error": "Invalid token"}), 401
+
+        return f(*args, **kwargs)
+    return decorated
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if request.user.get("role") != "admin":
+            return jsonify({"error": "Admin access required"}), 403
+        return f(*args, **kwargs)
+    return decorated
+###########################################################################
+
+
 
 users = {
     "admin": {"password": "password123", "role": "admin"},
@@ -37,6 +67,7 @@ emission_factors = {
 
 ######Create
 @app.route('/api/emissions', methods=['POST'])
+@token_required
 def add_activity():
     data = request.json
     activity_type = data.get("activity_type")
@@ -63,6 +94,7 @@ def get_activities():
 
 #######Update
 @app.route('/api/emissions/<int:activity_id>', methods=['PUT'])
+@token_required
 def update_activity(activity_id):
     if activity_id < 0 or activity_id >= len(emissions_data["daily_activities"]):
         return jsonify({"error": "Activity not found"}), 404
@@ -79,6 +111,8 @@ def update_activity(activity_id):
 
 #####Delete
 @app.route('/api/emissions/<int:activity_id>', methods=['DELETE'])
+@token_required
+@admin_required
 def delete_activity(activity_id):
     if activity_id < 0 or activity_id >= len(emissions_data["daily_activities"]):
         return jsonify({"error": "Activity not found"}), 404
@@ -128,29 +162,21 @@ def login():
     password = data.get("password")
 
     if username in users and users[username]["password"] == password:
-    #################################### token generowanie
         token = jwt.encode({
             'username': username,
             'role': users[username]["role"],
-            'exp': datetime.utcnow() + timedelta(minutes=60 )
+            'exp': datetime.utcnow() + timedelta(minutes=60)
         }, app.config['SECRET_KEY'], algorithm='HS256')
 
         return jsonify({"token": token})
     else:
         return jsonify({"error": "Invalid credentials"}), 401
-    ######################################################
-@app.route('/api/protected', methods=['GET'])
-def protected():
-    token = request.headers.get('Authorization')
-    if not token:
-        return jsonify({"error": "Token is missing"}), 401
 
-    try:
-        decoded_token = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
-        return jsonify({"message": f"Hello, {decoded_token['username']}! This is a protected endpoint."})
-    except jwt.ExpiredSignatureError:
-        return jsonify({"error": "Token has expired"}), 401
-    except jwt.InvalidTokenError:
-        return jsonify({"error": "Invalid token"}), 401
-    ######################################################
-    ######################################################
+@app.route('/api/protected', methods=['GET'])
+@token_required
+def protected():
+    return jsonify({"message": f"Hello, {request.user['username']}! This is a protected endpoint."})
+###################################################### 
+######################################################
+
+

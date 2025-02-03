@@ -101,3 +101,14 @@ def add_user():
     }
     users.append(new_user)
     return jsonify(new_user), 201
+
+####### Wyszukiwanie Restful
+@app.route('/api/emissions/search', methods=['GET'])
+def search_activities():
+    query = request.args.get('q', '').lower()  
+    results = [
+        activity for activity in emissions_data["daily_activities"]
+        if query in activity["choice"].lower() or query in activity["activity_type"].lower()
+    ]
+    return jsonify(results)
+

@@ -1,7 +1,14 @@
 from flask import Flask, jsonify, request, render_template
-from datetime import datetime
+from datetime import datetime, timedelta
+import jwt  
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'your_secret_key'  
+
+users = {
+    "admin": {"password": "password123", "role": "admin"},
+    "user": {"password": "user123", "role": "user"}
+}
 
 emissions_data = {
     "daily_activities": []
@@ -112,3 +119,38 @@ def search_activities():
     ]
     return jsonify(results)
 
+###################################################### Logowanie
+######################################################
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.json
+    username = data.get("username")
+    password = data.get("password")
+
+    if username in users and users[username]["password"] == password:
+    #################################### token generowanie
+        token = jwt.encode({
+            'username': username,
+            'role': users[username]["role"],
+            'exp': datetime.utcnow() + timedelta(minutes=60 )
+        }, app.config['SECRET_KEY'], algorithm='HS256')
+
+        return jsonify({"token": token})
+    else:
+        return jsonify({"error": "Invalid credentials"}), 401
+    ######################################################
+@app.route('/api/protected', methods=['GET'])
+def protected():
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({"error": "Token is missing"}), 401
+
+    try:
+        decoded_token = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+        return jsonify({"message": f"Hello, {decoded_token['username']}! This is a protected endpoint."})
+    except jwt.ExpiredSignatureError:
+        return jsonify({"error": "Token has expired"}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"error": "Invalid token"}), 401
+    ######################################################
+    ######################################################

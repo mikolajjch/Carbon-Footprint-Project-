@@ -1,7 +1,9 @@
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request, render_template, g
 from datetime import datetime, timedelta
 import jwt
 from functools import wraps
+import bcrypt
+import sqlite3
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
@@ -19,7 +21,7 @@ def token_required(f):
 
         try:
             decoded_token = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
-            request.user = decoded_token
+            g.user = decoded_token
         except jwt.ExpiredSignatureError:
             return jsonify({"error": "Token has expired"}), 401
         except jwt.InvalidTokenError:
@@ -30,20 +32,100 @@ def token_required(f):
 def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if request.user.get("role") != "admin":
+        if not g.user or g.user.get("role") != "admin":
             return jsonify({"error": "Admin access required"}), 403
         return f(*args, **kwargs)
     return decorated
 ###########################################################################
+#Łączenie z bazą danych
+###########################################################################
+def get_db():
+    db = getattr(g, '_database', None)
+    if db is None:
+        db = g._database = sqlite3.connect('users.db')
+        db.execute('''CREATE TABLE IF NOT EXISTS users (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        username TEXT UNIQUE NOT NULL,
+                        password TEXT NOT NULL,
+                        role TEXT NOT NULL)''')
+        db.commit()
+    return db
+#############################
+@app.teardown_appcontext
+def close_connection(exception):
+    db = getattr(g, '_database', None)
+    if db is not None:
+        db.close()
+
+def hash_password(password):
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+def verify_password(password, hashed_password):
+    return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
+
+####################################################################################
+############## rejestracja i logowanie użytkowników
+@app.route('/api/register', methods=['POST'])
+def register():
+    data = request.json
+    username = data.get("username")
+    password = data.get("password")
+    role = data.get("role", "user")
+    hashed_password = hash_password(password)
+    db = get_db()
+    try:
+        db.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+                   (username, hashed_password, role))
+        db.commit()
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "User already exists"}), 400
+    
+    return jsonify({"message": "User registered successfully!"}), 201
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.json
+    username = data.get("username")
+    password = data.get("password")
+    
+    db = get_db()
+    cursor = db.execute("SELECT password, role FROM users WHERE username = ?", (username,))
+    user = cursor.fetchone()
+    
+    if user and verify_password(password, user[0]):
+        token = jwt.encode({
+            'username': username,
+            'role': user[1],
+            'exp': datetime.utcnow() + timedelta(minutes=60)
+        }, app.config['SECRET_KEY'], algorithm='HS256')
+        return jsonify({"token": token})
+    
+    return jsonify({"error": "Invalid credentials"}), 401
 
 
+########################################
+#@app.route('/users', methods=['GET'])
+#def get_users():
+#   return jsonify(users)
 
-users = {
-    "admin": {"password": "password123", "role": "admin"},
-    "user": {"password": "user123", "role": "user"},
-    "cobra": {"password": "bonzo", "role": "user"}
-}
+#@app.route('/users', methods=['POST'])
+#def add_user():
+#    data = request.get_json()
+#    new_user = {
+#        "id": len(users) + 1,
+#        "name": data['name'],
+ #       "email": data['email']
+ #   }
+ #   users.append(new_user)
+  #  return jsonify(new_user), 201
 
+
+###############################################################################################
+@app.route('/api/protected', methods=['GET'])
+@token_required
+def protected():
+    return jsonify({"message": f"Hello, {g.user['username']}! This is a protected endpoint."})
+##############################################################################################
+####################################################### emisje i obsluga bez zewnętrznej bazy danych
 emissions_data = {
     "daily_activities": []
 }
@@ -124,29 +206,6 @@ def delete_activity(activity_id):
     removed_activity = emissions_data["daily_activities"].pop(activity_id)
     return jsonify({"message": "Activity deleted successfully!", "removed_activity": removed_activity})
 
-#############
-@app.route('/')
-def home():
-    try:
-        return render_template('index.html')
-    except Exception as e:
-        return f"Error rendering index.html: {e}", 500
-
-@app.route('/users', methods=['GET'])
-def get_users():
-    return jsonify(users)
-
-@app.route('/users', methods=['POST'])
-def add_user():
-    data = request.get_json()
-    new_user = {
-        "id": len(users) + 1,
-        "name": data['name'],
-        "email": data['email']
-    }
-    users.append(new_user)
-    return jsonify(new_user), 201
-
 ####### Wyszukiwanie Restful
 @app.route('/api/emissions/search', methods=['GET'])
 def search_activities():
@@ -157,31 +216,14 @@ def search_activities():
     ]
     return jsonify(results)
 
-###################################################### Logowanie
-######################################################
-@app.route('/api/login', methods=['POST'])
-def login():
-    data = request.json
-    username = data.get("username")
-    password = data.get("password")
-
-    if username in users and users[username]["password"] == password:
-        token = jwt.encode({
-            'username': username,
-            'role': users[username]["role"],
-            'exp': datetime.utcnow() + timedelta(minutes=60)
-        }, app.config['SECRET_KEY'], algorithm='HS256')
-
-        return jsonify({"token": token})
-    else:
-        return jsonify({"error": "Invalid credentials"}), 401
-
-@app.route('/api/protected', methods=['GET'])
-@token_required
-def protected():
-    return jsonify({"message": f"Hello, {request.user['username']}! This is a protected endpoint."})
 ###################################################### 
 ######################################################
-
+@app.route('/')
+def home():
+    try:
+        return render_template('index.html')
+    except Exception as e:
+        return f"Error rendering index.html: {e}", 500
+    
 
  

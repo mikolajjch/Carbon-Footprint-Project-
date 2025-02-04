@@ -12,19 +12,27 @@ app.config['SECRET_KEY'] = 'your_secret_key'
 socketio = SocketIO(app, cors_allowed_origins="*") 
 
 ################ handlery websocket
+visit_count = 0  
+active_users = 0  
+
 @socketio.on("connect")
 def handle_connect():
-    print("Client connected")
-    emit("message", {"data": "Welcome to WebSocket Server!"})
+    global visit_count, active_users
+    visit_count += 1
+    active_users += 1
+    print(f"Client connected! Total visits: {visit_count}, Active users: {active_users}")
+    emit("update_visit_count", {"count": visit_count, "active_users": active_users}, broadcast=True)
 
 @socketio.on("disconnect")
 def handle_disconnect():
-    print("Client disconnected")
+    global active_users
+    active_users -= 1
+    print(f"Client disconnected! Active users: {active_users}")
+    emit("update_visit_count", {"count": visit_count, "active_users": active_users}, broadcast=True)
 
-@socketio.on("custom_event")
-def handle_custom_event(data):
-    print("Received data:", data)
-    emit("message", {"data": f"Echo: {data}"}, broadcast=True)
+@socketio.on("visit_count_request")
+def handle_visit_count_request():
+    emit("update_visit_count", {"count": visit_count, "active_users": active_users})
 
 ########################## definijca tokenów i admin ####### NA POCZATKU
 def token_required(f):
@@ -47,6 +55,7 @@ def token_required(f):
 
         return f(*args, **kwargs)
     return decorated
+
 def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -54,6 +63,7 @@ def admin_required(f):
             return jsonify({"error": "Admin access required"}), 403
         return f(*args, **kwargs)
     return decorated
+
 ###########################################################################
 #Łączenie z bazą danych
 ###########################################################################
@@ -77,6 +87,7 @@ def close_connection(exception):
 
 def hash_password(password):
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
 def verify_password(password, hashed_password):
     return bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8'))
 
@@ -247,3 +258,6 @@ def home():
     
 
 
+
+if __name__ == '__main__':
+    socketio.run(app, debug=True)

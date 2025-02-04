@@ -51,8 +51,14 @@
         <h2>Result: <span id="emission-result">0</span> kg CO₂</h2>
     </div>
 
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <div>
+        <h2>Total visit count: <span id="visit-count">0</span></h2>
+        <h2>Active users: <span id="active-users">0</span></h2>
+    </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    
     <script>
         document.addEventListener("DOMContentLoaded", () => {
             const token = localStorage.getItem("token");

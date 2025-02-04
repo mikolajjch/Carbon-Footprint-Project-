@@ -1,4 +1,4 @@
-console.log("working...");
+const socket = io();
 
 document.getElementById("login-form").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -14,11 +14,10 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
         });
         
         const data = await response.json();
-        
         if (response.ok) {
             localStorage.setItem("token", data.token);
             alert("Login successful!");
-            location.reload(); 
+            location.reload();
         } else {
             throw new Error(data.error || "Login failed");
         }
@@ -31,25 +30,20 @@ document.getElementById("login-form").addEventListener("submit", async (e) => {
 
 document.getElementById("carbon-form").addEventListener("submit", async (e) => {
     e.preventDefault();
-    
     const token = localStorage.getItem("token");
     if (!token) {
         alert("Please log in first");
         return;
     }
-
     const category = document.getElementById("category").value;
     const activity = document.getElementById("activity").value;
     const value = document.getElementById("value").value;
-
-    console.log("Sending data:", { activity_type: category, choice: activity, value: parseFloat(value) });
-
     try {
         const response = await fetch('/api/emissions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` 
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({ activity_type: category, choice: activity, value: parseFloat(value) })
         });
@@ -78,7 +72,7 @@ document.getElementById("carbon-form").addEventListener("submit", async (e) => {
 document.getElementById("logout-btn").addEventListener("click", () => {
     localStorage.removeItem("token");
     alert("Logged out successfully");
-    location.reload(); 
+    location.reload();
 });
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -88,4 +82,9 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("carbon-form").style.display = "block";
         document.getElementById("logout-btn").style.display = "block";
     }
+});
+
+socket.on("update_visit_count", (data) => {
+    document.getElementById("visit-count").textContent = data.count;
+    document.getElementById("active-users").textContent = data.active_users;
 });

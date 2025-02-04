@@ -4,9 +4,27 @@ import jwt
 from functools import wraps
 import bcrypt
 import sqlite3
+from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
+
+socketio = SocketIO(app, cors_allowed_origins="*") 
+
+################ handlery websocket
+@socketio.on("connect")
+def handle_connect():
+    print("Client connected")
+    emit("message", {"data": "Welcome to WebSocket Server!"})
+
+@socketio.on("disconnect")
+def handle_disconnect():
+    print("Client disconnected")
+
+@socketio.on("custom_event")
+def handle_custom_event(data):
+    print("Received data:", data)
+    emit("message", {"data": f"Echo: {data}"}, broadcast=True)
 
 ########################## definijca tokenów i admin ####### NA POCZATKU
 def token_required(f):
@@ -171,6 +189,8 @@ def add_activity():
         "emission": emission
     }
     emissions_data["daily_activities"].append(activity)
+    socketio.emit("new_activity", {"message": "New activity added!", "activity": activity})
+    
     return jsonify({"message": "Activity added successfully!", "activity": activity}), 201
 
 #######Read
@@ -226,4 +246,4 @@ def home():
         return f"Error rendering index.html: {e}", 500
     
 
- 
+

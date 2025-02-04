@@ -93,6 +93,8 @@ def verify_password(password, hashed_password):
 
 ####################################################################################
 ############## rejestracja i logowanie użytkowników
+###############################################################################################
+############## i CRUD dla użytkowników
 @app.route('/api/register', methods=['POST'])
 def register():
     data = request.json
@@ -130,23 +132,23 @@ def login():
     
     return jsonify({"error": "Invalid credentials"}), 401
 
+@app.route('/api/users', methods=['GET'])
+@token_required
+@admin_required
+def get_users():
+    db = get_db()
+    cursor = db.execute("SELECT id, username, role FROM users")
+    users = cursor.fetchall()
+    return jsonify([{"id": user[0], "username": user[1], "role": user[2]} for user in users])
 
-########################################
-#@app.route('/users', methods=['GET'])
-#def get_users():
-#   return jsonify(users)
-
-#@app.route('/users', methods=['POST'])
-#def add_user():
-#    data = request.get_json()
-#    new_user = {
-#        "id": len(users) + 1,
-#        "name": data['name'],
- #       "email": data['email']
- #   }
- #   users.append(new_user)
-  #  return jsonify(new_user), 201
-
+@app.route('/api/users/<int:user_id>', methods=['DELETE'])
+@token_required
+@admin_required
+def delete_user(user_id):
+    db = get_db()
+    db.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    db.commit()
+    return jsonify({"message": "User deleted successfully!"})
 
 ###############################################################################################
 @app.route('/api/protected', methods=['GET'])

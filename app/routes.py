@@ -13,6 +13,9 @@ def token_required(f):
         token = request.headers.get('Authorization')
         if not token:
             return jsonify({"error": "Token is missing"}), 401
+        
+        if token.startswith("Bearer "):
+            token = token.split(" ")[1]  
 
         try:
             decoded_token = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
@@ -37,7 +40,8 @@ def admin_required(f):
 
 users = {
     "admin": {"password": "password123", "role": "admin"},
-    "user": {"password": "user123", "role": "user"}
+    "user": {"password": "user123", "role": "user"},
+    "cobra": {"password": "bonzo", "role": "user"}
 }
 
 emissions_data = {
@@ -180,3 +184,4 @@ def protected():
 ######################################################
 
 
+ 

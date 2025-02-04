@@ -197,7 +197,8 @@ def add_activity():
         "activity_type": activity_type,
         "choice": choice,
         "value": value,
-        "emission": emission
+        "emission": emission,
+        "username": g.user["username"]  
     }
     emissions_data["daily_activities"].append(activity)
     socketio.emit("new_activity", {"message": "New activity added!", "activity": activity})
@@ -206,8 +207,13 @@ def add_activity():
 
 #######Read
 @app.route('/api/emissions', methods=['GET'])
+@token_required
 def get_activities():
-    return jsonify(emissions_data)
+    if g.user["role"] == "admin":
+        return jsonify(emissions_data)
+    else:
+        user_activities = [activity for activity in emissions_data["daily_activities"] if activity.get("username") == g.user["username"]]
+        return jsonify({"daily_activities": user_activities})
 
 #######Update
 @app.route('/api/emissions/<int:activity_id>', methods=['PUT'])
@@ -216,8 +222,11 @@ def update_activity(activity_id):
     if activity_id < 0 or activity_id >= len(emissions_data["daily_activities"]):
         return jsonify({"error": "Activity not found"}), 404
     
-    data = request.json
     activity = emissions_data["daily_activities"][activity_id]
+    if g.user["role"] != "admin" and activity.get("username") != g.user["username"]:
+        return jsonify({"error": "You can only update your own activities"}), 403
+    
+    data = request.json
     activity["activity_type"] = data.get("activity_type", activity["activity_type"])
     activity["choice"] = data.get("choice", activity["choice"])
     activity["value"] = data.get("value", activity["value"])
@@ -229,10 +238,13 @@ def update_activity(activity_id):
 #####Delete
 @app.route('/api/emissions/<int:activity_id>', methods=['DELETE'])
 @token_required
-@admin_required
 def delete_activity(activity_id):
     if activity_id < 0 or activity_id >= len(emissions_data["daily_activities"]):
         return jsonify({"error": "Activity not found"}), 404
+    
+    activity = emissions_data["daily_activities"][activity_id]
+    if g.user["role"] != "admin" and activity.get("username") != g.user["username"]:
+        return jsonify({"error": "You can only delete your own activities"}), 403
     
     removed_activity = emissions_data["daily_activities"].pop(activity_id)
     return jsonify({"message": "Activity deleted successfully!", "removed_activity": removed_activity})
@@ -259,5 +271,5 @@ def home():
 
 
 
-if __name__ == '__main__':
-    socketio.run(app, debug=True)
+#if __name__ == '__main__':
+#    socketio.run(app, debug=True)

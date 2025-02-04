@@ -22,7 +22,8 @@
     </form>
 
     <button id="logout-btn" style="display: none;">Logout</button>
-<!-- ############################################################### -->
+
+    <!-- ############################################################### -->
     <form id="carbon-form" style="display: none;">
         <h2>Calculate Your Carbon Footprint</h2>
         <label for="category">Choose a category:</label>
@@ -31,7 +32,7 @@
             <option value="food">Food</option>
             <option value="energy">Energy</option>
         </select>
-    
+
         <label for="activity">Choose an activity:</label>
         <select id="activity" name="activity">
             <option value="car">Car</option>
@@ -40,13 +41,14 @@
             <option value="vegetarian">Vegetarian Diet</option>
             <option value="coal">Coal Energy</option>
         </select>
-    
+
         <label for="value">Enter a value:</label>
         <input type="number" id="value" name="value" required>
-    
+
         <button type="submit">Calculate</button>
     </form>
-<!-- ############################################################### -->
+    <!-- ############################################################### -->
+
     <div id="result">
         <h2>Result: <span id="emission-result">0</span> kg CO₂</h2>
     </div>
@@ -54,6 +56,50 @@
     <div>
         <h2>Total visit count: <span id="visit-count">0</span></h2>
         <h2>Active users: <span id="active-users">0</span></h2>
+    </div>
+
+    <div id="user-panel" style="display: none;">
+        <h2>Your Activities</h2>
+        <table id="activities-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Date</th>
+                    <th>Activity Type</th>
+                    <th>Choice</th>
+                    <th>Value</th>
+                    <th>Emission</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                
+            </tbody>
+        </table>
+    </div>
+
+    <div id="admin-panel" style="display: none;">
+        <h2>Admin Panel</h2>
+
+        <h3>All Activities</h3>
+        <table id="all-activities-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Date</th>
+                    <th>Activity Type</th>
+                    <th>Choice</th>
+                    <th>Value</th>
+                    <th>Emission</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            
+
+
+            </tbody>
+        </table>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
